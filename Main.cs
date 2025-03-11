@@ -1,5 +1,4 @@
 ﻿using BepInEx;
-using R2API;
 using RoR2;
 using RoR2.ContentManagement;
 using System;
@@ -29,15 +28,16 @@ using RoR2.UI;
 namespace TrueFirstPerson
 {
     [BepInPlugin(ModGuid, ModName, ModVer)]
-    [BepInDependency(R2API.R2API.PluginGUID, R2API.R2API.PluginVersion)]
+    //[BepInDependency(R2API.R2API.PluginGUID, R2API.R2API.PluginVersion)]
     [System.Serializable]
+    [BepInDependency("com.rune580.riskofoptions")]
     [BepInDependency("com.weliveinasociety.CustomEmotesAPI", BepInDependency.DependencyFlags.SoftDependency)]
     public class Main : BaseUnityPlugin
     {
         public static BepInEx.PluginInfo PInfo { get; private set; }
         public const string ModGuid = "com.brynzananas.truefirstperson";
         public const string ModName = "True First Person";
-        public const string ModVer = "1.0.0";
+        public const string ModVer = "1.0.1";
         public static ConfigEntry<KeyboardShortcut> FirstPersonToggle;
         public static ConfigEntry<float> FieldOfViewConfig;
         public static ConfigEntry<float> CurrentClip;
@@ -54,7 +54,7 @@ namespace TrueFirstPerson
             CurrentClip = Config.Bind<float>("General", "Current Camera Near Clip Parameter", 0.3f, "Current value of near camera clipping");
             EnableLook = Config.Bind<bool>("General", "Enable Input Camera Direction?", true, "Enable first person camera rotation to follow input rotation?");
             //EnableEmoteLookLock = Config.Bind<bool>("General", "Enable Emote Camera Lock?", true, "Enable locking camera rotation while emoting?");
-            EmoteLookLockMode = Config.Bind<bool>("General", "Emote Camera Lock Mode", true, "Enable first person camera rotation to follow head rotation while emoting?");
+            EmoteLookLockMode = Config.Bind<bool>("General", "Emote Camera Lock", true, "Enable first person camera rotation to follow head rotation while emoting?");
             //EnableCharacterRotation = Config.Bind<bool>("General", "Enable Character Rotation?", true, "Rotate character everytime while in first person?");
             EnableDebugKeys = Config.Bind<bool>("General", "Enable Control Keys?", true, "Enable keys to control FOV and Near Clip values in game?\n\nUse +/- buttons to increase/decrease FOV value. Hold Shift to change Near Clip value");
             survivorDefaultBoneOverride.Add("RobPaladinBody", "Armature/base/spine.001/spine.002/spine.003/spine.004/neck/head");
@@ -63,6 +63,7 @@ namespace TrueFirstPerson
             On.RoR2.PlayerCharacterMasterController.Update += SetCamera;
             On.RoR2.PlayerCharacterMasterController.OnBodyStart += PlayerCharacterMasterController_OnBodyStart;
             On.RoR2.SurvivorCatalog.Init += SurvivorCatalog_Init;
+            //SceneManager.activeSceneChanged += SceneManager_activeSceneChanged;
             survivorClipDefaultValues.Add("Bandit2Body", 0.21f);
             survivorClipDefaultValues.Add("CommandoBody", 0.03337884f);
             survivorClipDefaultValues.Add("CrocoBody", 0.5f);
@@ -88,7 +89,7 @@ namespace TrueFirstPerson
             //ModSettingsManager.AddOption(new CheckBoxOption(EnableEmoteLookLock));
             //ModSettingsManager.AddOption(new CheckBoxOption(EnableCharacterRotation));
             ModSettingsManager.AddOption(new CheckBoxOption(EnableDebugKeys));
-            ModSettingsManager.AddOption(new GenericButtonOption("Save Near Clip Value", "General", SaveValue));
+            //ModSettingsManager.AddOption(new GenericButtonOption("Save Near Clip Value", "General", SaveValue));
             FieldOfViewConfig.SettingChanged += FieldOfViewConfig_SettingChanged;
             CurrentClip.SettingChanged += FieldOfViewConfig_SettingChanged;
             EnableLook.SettingChanged += EnableLook_SettingChanged;
@@ -101,7 +102,44 @@ namespace TrueFirstPerson
                 ModSettingsManager.SetModIcon(sprite);
             }
         }
+        /*
 
+        public Light currentSunLight;
+        private void SceneManager_activeSceneChanged(Scene arg0, Scene arg1)
+        {
+            if (sceneSunColor.ContainsKey(arg1.name))
+            {
+                Color color = sceneSunColor[arg1.name].Value;
+                GameObject[] rootGameObjects = arg1.GetRootGameObjects();
+                foreach (var gameObject in rootGameObjects)
+                {
+                    foreach (var light in gameObject.GetComponentsInChildren<Light>())
+                    {
+                        if (light.type == LightType.Directional)
+                        {
+                            currentSunLight = light;
+                            if (color == Color.white)
+                            {
+                                sceneSunColor[arg1.name].Value = currentSunLight.color;
+                            }
+                            else
+                            {
+                                currentSunLight.color = color;
+                            }
+                            
+                            
+                            break;
+                        }
+                    }
+                    //foreach (var volume in gameObject.GetComponentsInChildren<PostProcessVolume>())
+                    //{
+                    //    volume.profile.
+                    //}
+                    if (currentSunLight != null) break;
+                }
+            }
+        }
+        */
         private void PlayerCharacterMasterController_OnBodyStart(On.RoR2.PlayerCharacterMasterController.orig_OnBodyStart orig, PlayerCharacterMasterController self)
         {
             orig(self);
@@ -134,9 +172,14 @@ namespace TrueFirstPerson
                 Camera cameraComponent = camera.GetComponent<Camera>();
                 previousMainCameraRigController.baseFov = FieldOfViewConfig.Value;
                 cameraComponent.nearClipPlane = CurrentClip.Value;
+                string bodyName = camera.transform.root.GetComponent<CharacterModel>().body.name;
+                while (bodyName.Contains("(Clone)"))
+                    bodyName = bodyName.Replace("(Clone)", "");
+                survivorClipValues[bodyName].Value = CurrentClip.Value;
             }
         }
         public static Dictionary<string, string> survivorDefaultBoneOverride = new Dictionary<string, string>();
+        public static Dictionary<string, ConfigEntry<Color>> sceneSunColor = new Dictionary<string, ConfigEntry<Color>>();
         public static Dictionary<string, ConfigEntry<string>> survivorBoneOverride = new Dictionary<string, ConfigEntry<string>>();
         public static Dictionary<string, float> survivorClipDefaultValues = new Dictionary<string, float>();
         public static Dictionary<string, ConfigEntry<float>> survivorClipValues = new Dictionary<string, ConfigEntry<float>>();
@@ -145,7 +188,24 @@ namespace TrueFirstPerson
         {
             orig();
             if (!set)
-            {
+            {/*
+                for (int i = 0; i < ContentManager.sceneDefs.Count(); i++)
+                {
+                    SceneDef scene = ContentManager.sceneDefs[i];
+                    ConfigEntry<Color>  SceneSunColor = Config.Bind<Color>(scene.cachedName, "Sun Color", Color.white, "Scene sun color");
+                    ModSettingsManager.AddOption(new ColorOption(SceneSunColor));
+                    sceneSunColor.Add(scene.cachedName, SceneSunColor);
+                    //SceneSunColor.SettingChanged += SceneSunColor_SettingChanged;
+                    //ConfigEntry<float> SceneFogIntensity = Config.Bind<float>(scene.cachedName, "Fog Intensity", 0.5f, "Scene fog intensity");
+                    //ConfigEntry<float> SceneFogPower = Config.Bind<float>(scene.cachedName, "Fog Power", 1f, "Scene fog power");
+                    ConfigEntry<Color> SceneFogStartColor = Config.Bind<Color>(scene.cachedName, "Fog Start Color", Color.white, "Scene fog start color");
+                    ConfigEntry<Color> SceneFogMiddleColor = Config.Bind<Color>(scene.cachedName, "Fog Middle Color", Color.white, "Scene fog middle color");
+                    ConfigEntry<Color> SceneFogEndColor = Config.Bind<Color>(scene.cachedName, "Fog End Color", Color.white, "Scene fog end color");
+                    ConfigEntry<Color> SceneSecondFogStartColor = Config.Bind<Color>(scene.cachedName, "Secondary Fog Start Color", Color.white, "Scene fog start color");
+                    ConfigEntry<Color> SceneSecondFogMiddleColor = Config.Bind<Color>(scene.cachedName, "Secondary Fog Middle Color", Color.white, "Scene fog middle color");
+                    ConfigEntry<Color> SceneSecondFogEndColor = Config.Bind<Color>(scene.cachedName, "Secondary Fog End Color", Color.white, "Scene fog end color");
+                    //ConfigEntry<float> SceneFogSkyboxIntensity = Config.Bind<float>(scene.cachedName, "Skybox Strength", 0f, "Scene skybox leaking");
+                }*/
                 set = true;
                 foreach (var survivor in SurvivorCatalog.allSurvivorDefs)
                 {
@@ -175,6 +235,17 @@ namespace TrueFirstPerson
                 }
             }
         }
+        /*
+        private void SceneSunColor_SettingChanged(object sender, EventArgs e)
+        {
+            if (currentSunLight)
+            {
+                if (sceneSunColor.ContainsKey(SceneManager.GetActiveScene().name))
+                {
+                    currentSunLight.color = sceneSunColor[SceneManager.GetActiveScene().name].Value;
+                }
+            }
+        }*/
 
         //private void PathOverride_SettingChanged(object sender, EventArgs e)
         //{
@@ -188,7 +259,7 @@ namespace TrueFirstPerson
         //        {
         //            return;
         //        }
-                
+
         //    }
         //}
         public void SetHead(CharacterBody body = null)
@@ -293,7 +364,7 @@ namespace TrueFirstPerson
         private void SetCamera(On.RoR2.PlayerCharacterMasterController.orig_Update orig, PlayerCharacterMasterController self)
         {
             orig(self);
-            if (Input.GetKeyDown(FirstPersonToggle.Value.MainKey) && !PauseManager.isPaused && !self.networkUser.cameraRigController.hud.GetComponentInChildren<ChatBox>().showInput && self.body)
+            if (Input.GetKeyDown(FirstPersonToggle.Value.MainKey) && !PauseManager.isPaused && (!self.networkUser.cameraRigController.hud.GetComponentInChildren<ChatBox>() || !self.networkUser.cameraRigController.hud.GetComponentInChildren<ChatBox>().showInput) && self.body)
             {
                 if (previousMainCamera == null)
                 {
@@ -479,7 +550,8 @@ namespace TrueFirstPerson
                     //    camera.transform.rotation = previousMainCamera.transform.rotation;
                     //    //previousMainCamera.transform.rotation = xQuat * yQuat;
                     //}
-                    self.body.inputBank.aimDirection = camera.transform.forward;
+                    //self.body.inputBank.aimDirection = camera.transform.forward;
+                    //self.body.SetAimTimer(0.2f);
                     //self.body.inputBank.moveVector = Quaternion.AngleAxis(rotationCamera.x, Vector3.up) * new Vector3(self.body.inputBank.rawMoveData.x, 0, self.body.inputBank.rawMoveData.y);
                     //previousMainCamera.transform.rotation = camera.transform.rotation;
                     //self.body.characterMotor.characterDirection.targetTransform = camera.transform;
@@ -536,22 +608,35 @@ namespace TrueFirstPerson
             private Vector3 previousPosition = Vector3.zero;
             public Transform transformToChange;
             private Transform previousTransform;
+            private Quaternion emoteStartQuaternion;
+            private Vector3 emoteStartVector;
+            private float emoteStartAngle;
+            private bool emoteStart = false;
+            private GameObject delta;
+            private string previousEmote = "none";
             //private CharacterCameraParamsData characterCameraParamsData;
             //public GameObject camera;
             public void OnEnable()
             {
                 if (previousCamera)
                 {
-                    previousMainCameraRigController.sceneCam = camera.GetComponent<Camera>();
-                    previousFov = previousMainCameraRigController.baseFov;
-                    previousMainCameraRigController.baseFov = FieldOfViewConfig.Value;
-                    transformToChange = transform.root.GetComponent<CharacterModel>().body.aimOriginTransform;
-                    previousPosition = transformToChange.localPosition;
-                    previousTransform = transformToChange.parent;
-                    transformToChange.SetParent(transform, false);
-                    transformToChange.localPosition = Vector3.zero;
-                    musicListener.transform.parent = null;
                     previousCamera.SetActive(false);
+                    previousFov = previousMainCameraRigController.baseFov;
+                    
+                    transformToChange = transform.root.GetComponent<CharacterModel>().body.aimOriginTransform;
+                    musicListener.transform.parent = null;
+                    if (transformToChange != null)
+                    {
+                        previousPosition = transformToChange.localPosition;
+                        previousTransform = transformToChange.parent;
+                        transformToChange.SetParent(transform, false);
+                        transformToChange.localPosition = Vector3.zero;
+                    }
+                    
+                    
+                    previousMainCameraRigController.baseFov = FieldOfViewConfig.Value;
+                    if (camera && camera.GetComponent<Camera>())
+                    previousMainCameraRigController.sceneCam = camera.GetComponent<Camera>();
                     //rotationCamera.x = previousMainCamera.transform.localRotation.eulerAngles.x;
                     //rotationCamera.y = previousMainCamera.transform.localRotation.eulerAngles.y;
                     //transform.localRotation = previousMainCamera.transform.localRotation;
@@ -584,12 +669,31 @@ namespace TrueFirstPerson
 
             public void LateUpdate()
             {
-                if (emotesEnabled && EmoteLookLockMode.Value && EmoteCompatability.CurrentEmote() != "none")
+                if (emotesEnabled && EmoteLookLockMode.Value && EmoteCompatability.CurrentEmote() != "none")// && EmoteCompatability.CurrentEmote() == previousEmote)
                 {
-                    transform.rotation = EmoteCompatability.GetHeadRotation();
+                    if (emoteStart)
+                    {
+                        transform.rotation = delta.transform.rotation;
+                    }
+                    //else
+                    //{
+
+                    //    delta = new GameObject("delta");
+                    //    delta.transform.SetParent(EmoteCompatability.GetHeadBone(), false);
+                    //    delta.transform.rotation = transform.root.rotation;
+                    //    emoteStart = true;
+                    //}
+
                 }
                 else
                 {
+                    //previousEmote = EmoteCompatability.CurrentEmote();
+                    //if (emoteStart)
+                    //{
+                    //    if (delta) Destroy(delta);
+                    //    emoteStart = false;
+                    //}
+                    
                     if (EnableLook.Value && previousMainCamera)
                     {
                         transform.rotation = previousMainCamera.transform.rotation;
@@ -597,13 +701,35 @@ namespace TrueFirstPerson
                 }
                     
             }
-            //public void EarlyUpdate()
-            //{
-            //    if (previousMainCamera)
-            //    {
-            //        transform.rotation = previousMainCamera.transform.rotation;
-            //    }
-            //}
+            public void EarlyUpdate()
+            {
+                if (emotesEnabled && EmoteLookLockMode.Value && EmoteCompatability.CurrentEmote() != "none" && EmoteCompatability.CurrentEmote() == previousEmote)
+                {
+                    if (emoteStart)
+                    {
+                        //transform.rotation = delta.transform.rotation;
+                    }
+                    else
+                    {
+
+                        delta = new GameObject("delta");
+                        delta.transform.SetParent(EmoteCompatability.GetHeadBone(), false);
+                        //transform.root.rotation = Quaternion.Euler(new Vector3 (0, previousMainCamera.transform.rotation.eulerAngles.y, 0));
+                        delta.transform.rotation = transform.root.rotation;
+                        emoteStart = true;
+                    }
+
+                }
+                else
+                {
+                    previousEmote = EmoteCompatability.CurrentEmote();
+                    if (emoteStart)
+                    {
+                        if (delta) Destroy(delta);
+                        emoteStart = false;
+                    }
+                }
+            }
             public void OnDisable()
             {
                 if (previousCamera)
@@ -619,7 +745,7 @@ namespace TrueFirstPerson
                 {
                     transformToChange.SetParent (previousTransform, false);
                     transformToChange.localPosition = previousPosition;
-                    
+
                 }  
             }
         }

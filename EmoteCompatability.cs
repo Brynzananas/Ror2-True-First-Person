@@ -31,5 +31,16 @@ namespace TrueFirstPerson
                 return Quaternion.identity;
             }
         }
+        public static Transform GetHeadBone()
+        {
+            if (CustomEmotesAPI.localMapper)
+            {
+                return CustomEmotesAPI.localMapper.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.Head);
+            }
+            else
+            {
+                return null;
+            }
+        }
     }
 }
