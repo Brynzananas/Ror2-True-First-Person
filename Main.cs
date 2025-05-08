@@ -22,6 +22,7 @@ using MonoMod.Cil;
 using HarmonyLib;
 using RoR2.CameraModes;
 using RoR2.UI;
+using UnityEngine.Networking;
 [assembly: SecurityPermission(SecurityAction.RequestMinimum, SkipVerification = true)]
 [assembly: HG.Reflection.SearchableAttribute.OptIn]
 [assembly: HG.Reflection.SearchableAttribute.OptInAttribute]
@@ -550,7 +551,8 @@ namespace TrueFirstPerson
                     //    camera.transform.rotation = previousMainCamera.transform.rotation;
                     //    //previousMainCamera.transform.rotation = xQuat * yQuat;
                     //}
-                    //self.body.inputBank.aimDirection = camera.transform.forward;
+                    if(NetworkServer.active)
+                    self.body.inputBank.aimDirection = camera.transform.forward;
                     //self.body.SetAimTimer(0.2f);
                     //self.body.inputBank.moveVector = Quaternion.AngleAxis(rotationCamera.x, Vector3.up) * new Vector3(self.body.inputBank.rawMoveData.x, 0, self.body.inputBank.rawMoveData.y);
                     //previousMainCamera.transform.rotation = camera.transform.rotation;
