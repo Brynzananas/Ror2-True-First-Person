@@ -377,8 +377,8 @@ namespace TrueFirstPerson
                 }
                 if (previousCamera == null)
                     previousCamera = previousMainCameraRigController.sceneCam.gameObject;
-                if (musicListener == null)
-                    musicListener = previousCamera.transform.Find("MusicListener").gameObject;
+                //if (musicListener == null)
+                //    musicListener = previousCamera.transform.Find("MusicListener").gameObject;
 
                 if (toggle)
                 {
@@ -599,7 +599,7 @@ namespace TrueFirstPerson
         public static GameObject previousMainCamera = null;
         public static CameraRigController previousMainCameraRigController = null;
         public static GameObject mainCamera = null;
-        public static GameObject musicListener = null;
+        //public static GameObject musicListener = null;
         //public static CameraState cameraState = new CameraState { fov = 90, position = Vector3.zero, rotation = Quaternion.identity};
         public bool toggle = true;
         public class FirstPersonCameraComponent : MonoBehaviour
@@ -624,7 +624,7 @@ namespace TrueFirstPerson
                     previousFov = previousMainCameraRigController.baseFov;
                     
                     transformToChange = transform.root.GetComponent<CharacterModel>().body.aimOriginTransform;
-                    musicListener.transform.parent = null;
+                    //musicListener.transform.parent = null;
                     if (transformToChange != null)
                     {
                         previousPosition = transformToChange.localPosition;
@@ -737,7 +737,7 @@ namespace TrueFirstPerson
                     previousMainCameraRigController.sceneCam = previousCamera.GetComponent<Camera>();
                     previousMainCameraRigController.baseFov = previousFov;
                     //previousMainCameraRigController.targetBody.GetComponent<CameraTargetParams>().RemoveParamsOverride(characterCameraParamsData);
-                    musicListener.transform.parent = previousCamera.transform;
+                    //musicListener.transform.parent = previousCamera.transform;
                     previousCamera.SetActive(true);
                     //previousMainCamera.transform.localRotation = transform.localRotation;
                 }
