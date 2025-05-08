@@ -38,7 +38,7 @@ namespace TrueFirstPerson
         public static BepInEx.PluginInfo PInfo { get; private set; }
         public const string ModGuid = "com.brynzananas.truefirstperson";
         public const string ModName = "True First Person";
-        public const string ModVer = "1.0.1";
+        public const string ModVer = "1.0.2";
         public static ConfigEntry<KeyboardShortcut> FirstPersonToggle;
         public static ConfigEntry<float> FieldOfViewConfig;
         public static ConfigEntry<float> CurrentClip;
